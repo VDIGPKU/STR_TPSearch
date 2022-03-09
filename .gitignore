@@ -12,6 +12,10 @@
 *.eps
 *.pdf
 
+data_lmdb_release
+saved_models/*
+data/*
+
 ### Linux ###
 *~
 

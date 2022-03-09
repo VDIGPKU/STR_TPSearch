@@ -95,7 +95,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--image_folder', required=True, help='path to image_folder which contains text images')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=4)
-    parser.add_argument('--batch_size', type=int, default=192, help='input batch size')
+    parser.add_argument('--batch_size', type=int, default=256, help='input batch size')
     parser.add_argument('--saved_model', required=True, help="path to saved_model to evaluation")
     """ Data processing """
     parser.add_argument('--batch_max_length', type=int, default=25, help='maximum-label-length')
@@ -114,7 +114,7 @@ if __name__ == '__main__':
     parser.add_argument('--input_channel', type=int, default=1, help='the number of input channel of Feature extractor')
     parser.add_argument('--output_channel', type=int, default=512,
                         help='the number of output channel of Feature extractor')
-    parser.add_argument('--hidden_size', type=int, default=256, help='the size of the LSTM hidden state')
+    parser.add_argument('--hidden_size', type=int, default=512, help='the size of the LSTM hidden state')
 
     opt = parser.parse_args()
 

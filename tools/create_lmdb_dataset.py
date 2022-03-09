@@ -6,7 +6,7 @@ import lmdb
 import cv2
 
 import numpy as np
-
+import argparse
 
 def checkImageIsValid(imageBin):
     if imageBin is None:
@@ -24,14 +24,41 @@ def writeCache(env, cache):
         for k, v in cache.items():
             txn.put(k, v)
 
+def COCOText_data_processing(datalist):
+    def check(s):
+        try:
+            imagePath, label = s.strip('\n').split(',',1)
+        except:
+            return False
+        if len(imagePath) == 7:
+            for i in imagePath:
+                if not i.isdigit():
+                    return False
+            return True
+        else:
+            return False
+    new_datalist = []
+    i = 0
+    maxlen = len(datalist)
+    while i<maxlen:
+        s = datalist[i]
+        assert s[-1] == '\n'
+        while i<maxlen-1 and not check(datalist[i+1]):
+            i = i+1
+            s = s[:-1]+datalist[i]
+            flag=True
+        new_datalist.append(s)
+        i = i+1
+    return new_datalist
 
-def createDataset(inputPath, gtFile, outputPath, checkValid=True):
+def createDataset(inputPath, gtFile, outputPath, is_COCOText=False, checkValid=True):
     """
     Create LMDB dataset for training and evaluation.
     ARGS:
         inputPath  : input folder path where starts imagePath
         outputPath : LMDB output path
         gtFile     : list of image path and label
+        is_COCOText: if true, use pre-processing operation for COCOText
         checkValid : if true, check the validity of every image
     """
     os.makedirs(outputPath, exist_ok=True)
@@ -41,10 +68,24 @@ def createDataset(inputPath, gtFile, outputPath, checkValid=True):
 
     with open(gtFile, 'r', encoding='utf-8') as data:
         datalist = data.readlines()
+        if is_COCOText:
+            datalist = COCOText_data_processing(datalist)
 
     nSamples = len(datalist)
     for i in range(nSamples):
-        imagePath, label = datalist[i].strip('\n').split('\t')
+        if is_COCOText:
+            try:
+                imagePath, label = datalist[i].strip('\n').split(',',1)
+            except Exception as E:
+                print(datalist[i], len(datalist[i]))
+                print('Exception:{}'.format(E))
+                continue
+            if label[0] == '|' and label[-1] == '|':
+                label = label[1:-1]
+            assert '|' not in label
+            imagePath = '{}.jpg'.format(imagePath)
+        else:
+            imagePath, label = datalist[i].strip('\n').split('\t')
         imagePath = os.path.join(inputPath, imagePath)
 
         # # only use alphanumeric data

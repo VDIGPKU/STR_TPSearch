@@ -12,6 +12,7 @@ import numpy as np
 from torch.utils.data import Dataset, ConcatDataset, Subset
 from torch._utils import _accumulate
 import torchvision.transforms as transforms
+from transforms import CVColorJitter, CVDeterioration, CVGeometry
 
 
 class Batch_Balanced_Dataset(object):
@@ -30,7 +31,7 @@ class Batch_Balanced_Dataset(object):
         log.write(f'dataset_root: {opt.train_data}\nopt.select_data: {opt.select_data}\nopt.batch_ratio: {opt.batch_ratio}\n')
         assert len(opt.select_data) == len(opt.batch_ratio)
 
-        _AlignCollate = AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio_with_pad=opt.PAD)
+        _AlignCollate = AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio_with_pad=opt.PAD, data_aug=True)
         self.data_loader_list = []
         self.dataloader_iter_list = []
         batch_size_list = []
@@ -106,7 +107,7 @@ def hierarchical_dataset(root, opt, select_data='/'):
     dataset_log = f'dataset_root:    {root}\t dataset: {select_data[0]}'
     print(dataset_log)
     dataset_log += '\n'
-    for dirpath, dirnames, filenames in os.walk(root+'/'):
+    for dirpath, dirnames, filenames in os.walk(root+'/', followlinks=True):
         if not dirnames:
             select_flag = False
             for selected_d in select_data:
@@ -160,6 +161,8 @@ class LmdbDataset(Dataset):
                     label_key = 'label-%09d'.encode() % index
                     label = txn.get(label_key).decode('utf-8')
 
+                    char = self.opt.character.lower() + self.opt.character.upper()
+                    label = re.sub(f'[^{char}]+', '', label)
                     if len(label) > self.opt.batch_max_length:
                         # print(f'The length of the label is longer than max_length: length
                         # {len(label)}, {label} in dataset {self.root}')
@@ -168,8 +171,9 @@ class LmdbDataset(Dataset):
                     # By default, images containing characters which are not in opt.character are filtered.
                     # You can add [UNK] token to `opt.character` in utils.py instead of this filtering.
                     out_of_char = f'[^{self.opt.character}]'
-                    if re.search(out_of_char, label.lower()):
-                        continue
+                    # if re.search(out_of_char, label.lower()):
+                    #     continue
+                    assert not re.search(out_of_char, label.lower())
 
                     self.filtered_index_list.append(index)
 
@@ -221,7 +225,7 @@ class RawDataset(Dataset):
     def __init__(self, root, opt):
         self.opt = opt
         self.image_path_list = []
-        for dirpath, dirnames, filenames in os.walk(root):
+        for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
             for name in filenames:
                 _, ext = os.path.splitext(name)
                 ext = ext.lower()
@@ -289,14 +293,23 @@ class NormalizePAD(object):
 
 class AlignCollate(object):
 
-    def __init__(self, imgH=32, imgW=100, keep_ratio_with_pad=False):
+    def __init__(self, imgH=32, imgW=100, keep_ratio_with_pad=False, data_aug=False):
         self.imgH = imgH
         self.imgW = imgW
         self.keep_ratio_with_pad = keep_ratio_with_pad
+        self.augment_tfs = None
+        if data_aug:
+            self.augment_tfs = transforms.Compose([
+                CVGeometry(degrees=45, translate=(0.0, 0.0), scale=(0.5, 2.), shear=(45, 15), distortion=0.5, p=0.5),
+                CVDeterioration(var=20, degrees=6, factor=4, p=0.25),
+                CVColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.1, p=0.25)
+            ])
 
     def __call__(self, batch):
         batch = filter(lambda x: x is not None, batch)
         images, labels = zip(*batch)
+        if self.augment_tfs:
+            images = [self.augment_tfs(image) for image in images] 
 
         if self.keep_ratio_with_pad:  # same concept with 'Rosetta' paper
             resized_max_w = self.imgW

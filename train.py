@@ -12,7 +12,7 @@ import torch.optim as optim
 import torch.utils.data
 import numpy as np
 
-from utils import CTCLabelConverter, CTCLabelConverterForBaiduWarpctc, AttnLabelConverter, Averager
+from utils import CTCLabelConverter, AttnLabelConverter, Averager
 from dataset import hierarchical_dataset, AlignCollate, Batch_Balanced_Dataset
 from model import Model
 from test import validation
@@ -45,10 +45,7 @@ def train(opt):
     
     """ model configuration """
     if 'CTC' in opt.Prediction:
-        if opt.baiduCTC:
-            converter = CTCLabelConverterForBaiduWarpctc(opt.character)
-        else:
-            converter = CTCLabelConverter(opt.character)
+        converter = CTCLabelConverter(opt.character)
     else:
         converter = AttnLabelConverter(opt.character)
     opt.num_class = len(converter.character)
@@ -89,12 +86,7 @@ def train(opt):
 
     """ setup loss """
     if 'CTC' in opt.Prediction:
-        if opt.baiduCTC:
-            # need to install warpctc. see our guideline.
-            from warpctc_pytorch import CTCLoss 
-            criterion = CTCLoss()
-        else:
-            criterion = torch.nn.CTCLoss(zero_infinity=True).to(device)
+        criterion = torch.nn.CTCLoss(zero_infinity=True).to(device)
     else:
         criterion = torch.nn.CrossEntropyLoss(ignore_index=0).to(device)  # ignore [GO] token = ignore index 0
     # loss averager
@@ -110,10 +102,7 @@ def train(opt):
     # [print(name, p.numel()) for name, p in filter(lambda p: p[1].requires_grad, model.named_parameters())]
 
     # setup optimizer
-    if opt.adam:
-        optimizer = optim.Adam(filtered_parameters, lr=opt.lr, betas=(opt.beta1, 0.999))
-    else:
-        optimizer = optim.Adadelta(filtered_parameters, lr=opt.lr, rho=opt.rho, eps=opt.eps)
+    optimizer = optim.Adam(filtered_parameters, lr=opt.lr, betas=(opt.beta1, 0.999))
     print("Optimizer:")
     print(optimizer)
 
@@ -149,15 +138,13 @@ def train(opt):
         text, length = converter.encode(labels, batch_max_length=opt.batch_max_length)
         batch_size = image.size(0)
 
+        lr = adjust_learning_rate(optimizer, iteration, opt)
+
         if 'CTC' in opt.Prediction:
             preds = model(image, text)
             preds_size = torch.IntTensor([preds.size(1)] * batch_size)
-            if opt.baiduCTC:
-                preds = preds.permute(1, 0, 2)  # to use CTCLoss format
-                cost = criterion(preds, text, preds_size, length) / batch_size
-            else:
-                preds = preds.log_softmax(2).permute(1, 0, 2)
-                cost = criterion(preds, text, preds_size, length)
+            preds = preds.log_softmax(2).permute(1, 0, 2)
+            cost = criterion(preds, text, preds_size, length)
 
         else:
             preds = model(image, text[:, :-1])  # align with Attention.forward
@@ -183,7 +170,7 @@ def train(opt):
                 model.train()
 
                 # training loss and validation loss
-                loss_log = f'[{iteration+1}/{opt.num_iter}] Train loss: {loss_avg.val():0.5f}, Valid loss: {valid_loss:0.5f}, Elapsed_time: {elapsed_time:0.5f}'
+                loss_log = f'[{iteration+1}/{opt.num_iter}] Train loss: {loss_avg.val():0.5f}, Valid loss: {valid_loss:0.5f}, Elapsed_time: {elapsed_time:0.5f} lr: {lr:0.5f}'
                 loss_avg.reset()
 
                 current_model_log = f'{"Current_accuracy":17s}: {current_accuracy:0.3f}, {"Current_norm_ED":17s}: {current_norm_ED:0.2f}'
@@ -216,7 +203,7 @@ def train(opt):
                 log.write(predicted_result_log + '\n')
 
         # save model per 1e+5 iter.
-        if (iteration + 1) % 1e+5 == 0:
+        if (iteration + 1) % 1e+5 == 0 or (iteration + 1) == opt.num_iter:
             torch.save(
                 model.state_dict(), f'./saved_models/{opt.exp_name}/iter_{iteration+1}.pth')
 
@@ -225,30 +212,34 @@ def train(opt):
             sys.exit()
         iteration += 1
 
+def adjust_learning_rate(optimizer, cur_iter, opt):
+    """Decay the learning rate based on schedule"""
+    lr = opt.lr
+    for milestone in opt.schedule:
+        lr *= 0.1 if cur_iter >= milestone else 1.
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+    return lr
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--exp_name', help='Where to store logs and models')
-    parser.add_argument('--train_data', required=True, help='path to training dataset')
-    parser.add_argument('--valid_data', required=True, help='path to validation dataset')
-    parser.add_argument('--manualSeed', type=int, default=1111, help='for random seed setting')
+    parser.add_argument('--train_data', type=str, default='./data/training', help='path to training dataset')
+    parser.add_argument('--valid_data', type=str, default='./data/evaluation', help='path to validation dataset')
+    parser.add_argument('--manualSeed', type=int, default=0, help='for random seed setting')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=4)
-    parser.add_argument('--batch_size', type=int, default=192, help='input batch size')
+    parser.add_argument('--batch_size', type=int, default=256, help='input batch size')
     parser.add_argument('--num_iter', type=int, default=300000, help='number of iterations to train for')
     parser.add_argument('--valInterval', type=int, default=2000, help='Interval between each validation')
     parser.add_argument('--saved_model', default='', help="path to model to continue training")
     parser.add_argument('--FT', action='store_true', help='whether to do fine-tuning')
-    parser.add_argument('--adam', action='store_true', help='Whether to use adam (default is Adadelta)')
-    parser.add_argument('--lr', type=float, default=1, help='learning rate, default=1.0 for Adadelta')
+    parser.add_argument('--lr', type=float, default=5e-4, help='learning rate, default=5e-4 for Adam')
     parser.add_argument('--beta1', type=float, default=0.9, help='beta1 for adam. default=0.9')
-    parser.add_argument('--rho', type=float, default=0.95, help='decay rate rho for Adadelta. default=0.95')
-    parser.add_argument('--eps', type=float, default=1e-8, help='eps for Adadelta. default=1e-8')
     parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping value. default=5')
-    parser.add_argument('--baiduCTC', action='store_true', help='for data_filtering_off mode')
     """ Data processing """
-    parser.add_argument('--select_data', type=str, default='MJ-ST',
+    parser.add_argument('--select_data', type=str, default='Synthetic-Realistic',
                         help='select training data (default is MJ-ST, which means MJ and ST used as training data)')
-    parser.add_argument('--batch_ratio', type=str, default='0.5-0.5',
+    parser.add_argument('--batch_ratio', type=str, default='0.875-0.125',
                         help='assign ratio for each selected data in the batch')
     parser.add_argument('--total_data_usage_ratio', type=str, default='1.0',
                         help='total data usage ratio, this ratio is multiplied to total number of data.')
@@ -272,7 +263,10 @@ if __name__ == '__main__':
                         help='the number of input channel of Feature extractor')
     parser.add_argument('--output_channel', type=int, default=512,
                         help='the number of output channel of Feature extractor')
-    parser.add_argument('--hidden_size', type=int, default=256, help='the size of the LSTM hidden state')
+    parser.add_argument('--hidden_size', type=int, default=512, help='the size of the LSTM hidden state')
+
+    parser.add_argument('--schedule', default=[180000], nargs='*', type=int,
+                    help='learning rate schedule (when to drop lr by a ratio)')
 
     opt = parser.parse_args()
 
@@ -299,19 +293,19 @@ if __name__ == '__main__':
     cudnn.deterministic = True
     opt.num_gpu = torch.cuda.device_count()
     # print('device count', opt.num_gpu)
-    if opt.num_gpu > 1:
-        print('------ Use multi-GPU setting ------')
-        print('if you stuck too long time with multi-GPU setting, try to set --workers 0')
-        # check multi-GPU issue https://github.com/clovaai/deep-text-recognition-benchmark/issues/1
-        opt.workers = opt.workers * opt.num_gpu
-        opt.batch_size = opt.batch_size * opt.num_gpu
+    # if opt.num_gpu > 1:
+    #     print('------ Use multi-GPU setting ------')
+    #     print('if you stuck too long time with multi-GPU setting, try to set --workers 0')
+    #     # check multi-GPU issue https://github.com/clovaai/deep-text-recognition-benchmark/issues/1
+    #     opt.workers = opt.workers * opt.num_gpu
+    #     opt.batch_size = opt.batch_size * opt.num_gpu
 
-        """ previous version
-        print('To equlize batch stats to 1-GPU setting, the batch_size is multiplied with num_gpu and multiplied batch_size is ', opt.batch_size)
-        opt.batch_size = opt.batch_size * opt.num_gpu
-        print('To equalize the number of epochs to 1-GPU setting, num_iter is divided with num_gpu by default.')
-        If you dont care about it, just commnet out these line.)
-        opt.num_iter = int(opt.num_iter / opt.num_gpu)
-        """
+    #     """ previous version
+    #     print('To equlize batch stats to 1-GPU setting, the batch_size is multiplied with num_gpu and multiplied batch_size is ', opt.batch_size)
+    #     opt.batch_size = opt.batch_size * opt.num_gpu
+    #     print('To equalize the number of epochs to 1-GPU setting, num_iter is divided with num_gpu by default.')
+    #     If you dont care about it, just commnet out these line.)
+    #     opt.num_iter = int(opt.num_iter / opt.num_gpu)
+    #     """
 
     train(opt)

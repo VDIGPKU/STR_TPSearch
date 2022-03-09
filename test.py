@@ -20,12 +20,12 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 def benchmark_all_eval(model, criterion, converter, opt, calculate_infer_time=False):
     """ evaluation with 10 benchmark evaluation datasets """
     # The evaluation datasets, dataset order is same with Table 1 in our paper.
-    eval_data_list = ['IIIT5k_3000', 'SVT', 'IC03_860', 'IC03_867', 'IC13_857',
-                      'IC13_1015', 'IC15_1811', 'IC15_2077', 'SVTP', 'CUTE80']
+    # eval_data_list = ['IIIT5k_3000', 'SVT', 'IC03_860', 'IC03_867', 'IC13_857',
+    #                   'IC13_1015', 'IC15_1811', 'IC15_2077', 'SVTP', 'CUTE80']
 
-    # # To easily compute the total accuracy of our paper.
-    # eval_data_list = ['IIIT5k_3000', 'SVT', 'IC03_867', 
-    #                   'IC13_1015', 'IC15_2077', 'SVTP', 'CUTE80']
+    # To easily compute the total accuracy of our paper.
+    eval_data_list = ['IIIT5k_3000', 'SVT', 'IC03_867', 
+                      'IC13_1015', 'IC15_2077', 'SVTP', 'CUTE80']
 
     if calculate_infer_time:
         evaluation_batch_size = 1  # batch_size should be 1 to calculate the GPU inference time per image.
@@ -104,17 +104,10 @@ def validation(model, criterion, evaluation_loader, converter, opt):
             # Calculate evaluation loss for CTC deocder.
             preds_size = torch.IntTensor([preds.size(1)] * batch_size)
             # permute 'preds' to use CTCloss format
-            if opt.baiduCTC:
-                cost = criterion(preds.permute(1, 0, 2), text_for_loss, preds_size, length_for_loss) / batch_size
-            else:
-                cost = criterion(preds.log_softmax(2).permute(1, 0, 2), text_for_loss, preds_size, length_for_loss)
+            cost = criterion(preds.log_softmax(2).permute(1, 0, 2), text_for_loss, preds_size, length_for_loss)
 
             # Select max probabilty (greedy decoding) then decode index to character
-            if opt.baiduCTC:
-                _, preds_index = preds.max(2)
-                preds_index = preds_index.view(-1)
-            else:
-                _, preds_index = preds.max(2)
+            _, preds_index = preds.max(2)
             preds_str = converter.decode(preds_index.data, preds_size.data)
         
         else:
@@ -222,7 +215,7 @@ def test(opt):
     """ evaluation """
     model.eval()
     with torch.no_grad():
-        if opt.benchmark_all_eval:  # evaluation with 10 benchmark evaluation datasets
+        if not opt.single_dataset:  # evaluation with 10 benchmark evaluation datasets
             benchmark_all_eval(model, criterion, converter, opt)
         else:
             log = open(f'./result/{opt.exp_name}/log_evaluation.txt', 'a')
@@ -243,10 +236,10 @@ def test(opt):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--eval_data', required=True, help='path to evaluation dataset')
-    parser.add_argument('--benchmark_all_eval', action='store_true', help='evaluate 10 benchmark evaluation datasets')
+    parser.add_argument('--eval_data', type=str, default='./data/evaluation', help='path to evaluation dataset')
+    parser.add_argument('--single_dataset', action='store_true', help='evaluate only on 1 benchmark evaluation dataset')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=4)
-    parser.add_argument('--batch_size', type=int, default=192, help='input batch size')
+    parser.add_argument('--batch_size', type=int, default=256, help='input batch size')
     parser.add_argument('--saved_model', required=True, help="path to saved_model to evaluation")
     """ Data processing """
     parser.add_argument('--batch_max_length', type=int, default=25, help='maximum-label-length')
@@ -257,7 +250,6 @@ if __name__ == '__main__':
     parser.add_argument('--sensitive', action='store_true', help='for sensitive character mode')
     parser.add_argument('--PAD', action='store_true', help='whether to keep ratio then pad for image resize')
     parser.add_argument('--data_filtering_off', action='store_true', help='for data_filtering_off mode')
-    parser.add_argument('--baiduCTC', action='store_true', help='for data_filtering_off mode')
     """ Model Architecture """
     parser.add_argument('--Transformation', type=str, required=True, help='Transformation stage. None|TPS')
     parser.add_argument('--FeatureExtraction', type=str, required=True, help='FeatureExtraction stage. VGG|RCNN|ResNet')
@@ -267,7 +259,7 @@ if __name__ == '__main__':
     parser.add_argument('--input_channel', type=int, default=1, help='the number of input channel of Feature extractor')
     parser.add_argument('--output_channel', type=int, default=512,
                         help='the number of output channel of Feature extractor')
-    parser.add_argument('--hidden_size', type=int, default=256, help='the size of the LSTM hidden state')
+    parser.add_argument('--hidden_size', type=int, default=512, help='the size of the LSTM hidden state')
 
     opt = parser.parse_args()
 
