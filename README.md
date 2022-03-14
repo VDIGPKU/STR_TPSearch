@@ -1,8 +1,9 @@
 # Training Protocol Matters: Towards Accurate Scene Text Recognition with Training Protocol Searching
 Our searched training protocol shows a good generalization capability over mainstream STR models and can significantly improve their recognition accuracy.
-<img src="figures/STR_sota.png" alt="arch" style="zoom:100%;" />
+<p align="center">
+<img src="figures/STR_sota.png" alt="arch" style="zoom:40%;" />
+</p>
 
-# Getting Started
 ## Dependency
 - This work was tested with PyTorch 1.10.1, CUDA 11.3, python 3.9.7 and Ubuntu 16.04. 
 - requirements : lmdb, pillow, torchvision, nltk, natsort
@@ -90,6 +91,7 @@ CUDA_VISIBLE_DEVICES=0 python3 test.py \
 
 <details>
 <summary>Test CRNN[10] model</summary>
+
 ```
 CUDA_VISIBLE_DEVICES=0 python3 train.py \
 --Transformation None --FeatureExtraction VGG --SequenceModeling BiLSTM --Prediction CTC 
@@ -98,6 +100,7 @@ CUDA_VISIBLE_DEVICES=0 python3 train.py \
 
 <details>
 <summary>Test STAR-Net[12] model</summary>
+
 ```
 CUDA_VISIBLE_DEVICES=0 python3 test.py \
 --Transformation TPC --FeatureExtraction ResNet --SequenceModeling BiLSTM --Prediction CTC \
@@ -154,8 +157,8 @@ This implementation has been based on these repository
 [8] T. Q. Phan, P. Shivakumara, S. Tian, and C. L. Tan. Recognizing text with perspective distortion in natural scenes. In ICCV, pages 569–576, 2013. <br>
 [9] A. Risnumawan, P. Shivakumara, C. S. Chan, and C. L. Tan. A robust arbitrary text detection system for natural scene images. In ESWA, volume 41, pages 8027–8048, 2014. <br>
 [10] B. Shi, X. Bai, and C. Yao. An end-to-end trainable neural network for image-based sequence recognition and its application to scene text recognition. In TPAMI, volume 39, pages2298–2304. 2017. <br>
-[11] Veit, Andreas, et al. "Coco-text: Dataset and benchmark for text detection and recognition in natural images." arXiv preprint arXiv:1601.07140 (2016).
-[12] Wei Liu, Chaofeng Chen, Kwan-Yee KWong, Zhizhong Su, and Junyu Han. Star-net: A spatial attention residue network for scene text recognition. In BMVC, volume 2, 2016.
-[13] Baek, Jeonghun, et al. "What is wrong with scene text recognition model comparisons? dataset and model analysis." Proceedings of the IEEE/CVF International Conference on Computer Vision. 2019.
+[11] Veit, Andreas, et al. "Coco-text: Dataset and benchmark for text detection and recognition in natural images." arXiv preprint arXiv:1601.07140 (2016). <br>
+[12] Wei Liu, Chaofeng Chen, Kwan-Yee KWong, Zhizhong Su, and Junyu Han. Star-net: A spatial attention residue network for scene text recognition. In BMVC, volume 2, 2016. <br>
+[13] Baek, Jeonghun, et al. "What is wrong with scene text recognition model comparisons? dataset and model analysis." Proceedings of the IEEE/CVF International Conference on Computer Vision. 2019. <br>
 </details>
 
