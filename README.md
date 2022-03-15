@@ -73,9 +73,9 @@ pip3 install lmdb pillow torchvision nltk natsort
 ## Pretrained Models
 |Model|IIIT5K|SVT|IC03_867|IC13_1015|IC15_2077|SVT-P|CUTE80|
 |:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-|CRNN([ckp](https://github.com/VDIGPKU/storage/releases/download/str.0.0.1/CRNN.pth))|93.9|89.2|93.7|92.3|78.6|80.5|81.6|
-|STAR-Net([ckp](https://github.com/VDIGPKU/storage/releases/download/str.0.0.1/STARNet.pth))|95.8|94.1|94.9|94.1|82.9|85.3|89.9|
-|TRBA([ckp](https://github.com/VDIGPKU/storage/releases/download/str.0.0.1/TRBA.pth))|96.6|95.5|96.5|95.5|84.4|89.9|90.3|
+|CRNN([ckp](https://github.com/VDIGPKU/STR_TPSearch/releases/download/v1.0.0/CRNN.pth))|93.9|89.2|93.7|92.3|78.6|80.5|81.6|
+|STAR-Net([ckp](https://github.com/VDIGPKU/STR_TPSearch/releases/download/v1.0.0/STARNet.pth))|95.8|94.1|94.9|94.1|82.9|85.3|89.9|
+|TRBA([ckp](https://github.com/VDIGPKU/STR_TPSearch/releases/download/v1.0.0/TRBA.pth))|96.6|95.5|96.5|95.5|84.4|89.9|90.3|
  
 ## Training and evaluation
 ### Try to train and test TRBA (**T**PS-**R**esNet-**B**iLSTM-**A**ttn) [13]. 
@@ -112,7 +112,7 @@ CUDA_VISIBLE_DEVICES=0 python3 test.py \
 <details>
 <summary> Run demo with pretrained model </summary>
 
-1. Download pretrained model from [here](https://github.com/VDIGPKU/storage/releases/download/str.0.0.1/TRBA.pth)
+1. Download pretrained model from [here](https://github.com/VDIGPKU/STR_TPSearch/releases/download/v1.0.0/TRBA.pth)
 2. Add image files to test into `demo_image/`
 3. Run demo.py
 ```
