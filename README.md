@@ -1,7 +1,7 @@
 # Training Protocol Matters: Towards Accurate Scene Text Recognition with Training Protocol Searching
 Our searched training protocol shows a good generalization capability over mainstream STR models and can significantly improve their recognition accuracy.
 <p align="center">
-<img src="figures/STR_sota.png" alt="arch" style="zoom:40%;" />
+<img src="figures/STR_sota.png" alt="arch" style="zoom:30%;" />
 </p>
 
 ## Dependency
@@ -124,12 +124,12 @@ CUDA_VISIBLE_DEVICES=0 python3 demo.py \
 </details>
 
 ## Citation
-If you use our code/model, please consider to cite our paper [Training Protocol Matters: Towards Accurate Scene Text Recognition via Training Protocol Searching]().
+If you use our code/model, please consider to cite our paper [Training Protocol Matters: Towards Accurate Scene Text Recognition via Training Protocol Searching](https://arxiv.org/abs/2203.06696).
 ```
 @article{chu2022training,
   title={Training Protocol Matters: Towards Accurate Scene Text Recognition via Training Protocol Searching}, 
   author={Xiaojie Chu and Yongtao Wang and Chunhua Shen and Jingdong Chen and Wei Chu},
-  journal={arXiv preprint arXiv:2203.},
+  journal={arXiv preprint arXiv:2203.06696},
   year={2022}
 }
 ```
